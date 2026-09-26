@@ -1,7 +1,7 @@
 import "./style.css";
 import { Game } from "./game";
 import { loadFrame } from "./save";
-import { CPU_LEVELS } from "./ai";
+import { CPU_LEVELS, type CpuLevel } from "./ai";
 import { loadSettings, saveSettings } from "./settings";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
@@ -114,6 +114,10 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <div id="overlay">
     <div class="card">
       <h1 class="visually-hidden">3D Snooker</h1>
+      <fieldset class="start-levels">
+        <legend>Opponent</legend>
+        <div id="start-cpu-levels" class="segmented"></div>
+      </fieldset>
       <div class="overlay-actions">
         <button id="continue-btn" type="button" hidden>Continue frame</button>
         <button id="start-btn" type="button">Start frame</button>
@@ -164,10 +168,23 @@ const refreshSoundBtn = (on: boolean) => {
 };
 soundBtn.addEventListener("click", () => refreshSoundBtn(game.toggleSound()));
 
-// CPU level picker (Settings card)
+// CPU level pickers: Settings card and start screen, kept in sync.
 const settings = loadSettings();
 game.cpuLevel = settings.cpuLevel;
 const levelsBox = document.querySelector<HTMLDivElement>("#cpu-levels")!;
+const startLevelsBox = document.querySelector<HTMLDivElement>("#start-cpu-levels")!;
+
+function setCpuLevel(level: CpuLevel): void {
+  settings.cpuLevel = level;
+  game.cpuLevel = level;
+  saveSettings(settings);
+  for (const input of document.querySelectorAll<HTMLInputElement>(
+    'input[name="cpu-level"], input[name="start-cpu-level"]',
+  )) {
+    input.checked = input.value === String(level);
+  }
+}
+
 for (const l of CPU_LEVELS) {
   const label = document.createElement("label");
   label.className = "level-option";
@@ -175,12 +192,7 @@ for (const l of CPU_LEVELS) {
   input.type = "radio";
   input.name = "cpu-level";
   input.value = String(l.level);
-  input.checked = l.level === settings.cpuLevel;
-  input.addEventListener("change", () => {
-    settings.cpuLevel = l.level;
-    game.cpuLevel = l.level;
-    saveSettings(settings);
-  });
+  input.addEventListener("change", () => setCpuLevel(l.level));
   const text = document.createElement("span");
   const name = document.createElement("b");
   name.textContent = l.name;
@@ -189,7 +201,19 @@ for (const l of CPU_LEVELS) {
   text.append(name, blurb);
   label.append(input, text);
   levelsBox.append(label);
+
+  const seg = document.createElement("label");
+  const segInput = document.createElement("input");
+  segInput.type = "radio";
+  segInput.name = "start-cpu-level";
+  segInput.value = String(l.level);
+  segInput.addEventListener("change", () => setCpuLevel(l.level));
+  const segText = document.createElement("span");
+  segText.textContent = l.name;
+  seg.append(segInput, segText);
+  startLevelsBox.append(seg);
 }
+setCpuLevel(settings.cpuLevel);
 
 /** Settings / controls / rules cards: at most one open, each toggled by its icon button. */
 const cards = {

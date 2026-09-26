@@ -228,6 +228,66 @@ canvas {
   line-height: 1.55;
 }
 
+.start-levels {
+  border: none;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+.start-levels legend {
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #d6e0ee;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgba(8, 16, 28, 0.6);
+  border: 1px solid rgba(180, 210, 255, 0.18);
+  backdrop-filter: blur(6px);
+}
+
+.segmented label {
+  position: relative;
+  cursor: pointer;
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+
+.segmented span {
+  display: block;
+  padding: 8px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #cdd9ee;
+  transition: background 0.15s, color 0.15s;
+}
+
+.segmented input:checked + span {
+  background: rgba(125, 255, 168, 0.16);
+  color: #7dffa8;
+  box-shadow: inset 0 0 0 1px rgba(125, 255, 168, 0.6);
+}
+
+.segmented input:focus-visible + span {
+  outline: 2px solid #7dffa8;
+  outline-offset: 2px;
+}
+
 #overlay button {
   pointer-events: auto;
   cursor: pointer;
