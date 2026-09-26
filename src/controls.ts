@@ -371,7 +371,7 @@ export class PlayerControls {
 
     // If camera would sit over the cloth, lift it above the rails
     if (Math.abs(camPos.x) < halfW + rail && Math.abs(camPos.z) < halfL + rail) {
-      camPos.y = Math.max(camPos.y, TABLE.height + 0.35);
+      camPos.y = Math.max(camPos.y, TABLE.height + 0.25 + CONTROLS.aimCameraLift);
     }
 
     return clampToRoom(camPos);

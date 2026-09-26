@@ -150,7 +150,7 @@ export const CONTROLS = {
   aimDistanceMin: 0.35,
   aimDistanceMax: 3.8,
   /** Extra height of the player's aim camera (metres). */
-  aimCameraLift: 0.1,
+  aimCameraLift: 0.3,
   /** Horizontal pull-in of the aim camera toward the cue ball (metres). */
   aimCameraPullIn: 0.2,
   /** CPU-turn side camera height above the cushion rail (metres). */
