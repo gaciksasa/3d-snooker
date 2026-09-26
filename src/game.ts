@@ -56,6 +56,9 @@ export class Game {
     frameOverTitle: document.querySelector("#frame-over .fo-title") as HTMLElement,
     frameOverScore: document.querySelector("#frame-over .fo-score") as HTMLElement,
     targetBanner: document.querySelector("#target-banner") as HTMLElement,
+    onBall: document.querySelector("#on-ball") as HTMLElement,
+    onBallDots: document.querySelector("#on-ball .ob-dots") as HTMLElement,
+    onBallName: document.querySelector("#on-ball .ob-name") as HTMLElement,
     targetLabel: document.querySelector("#target-banner .tb-label") as HTMLElement,
     targetDots: document.querySelector("#target-banner .tb-dots") as HTMLElement,
     targetName: document.querySelector("#target-banner .tb-name") as HTMLElement,
@@ -140,6 +143,7 @@ export class Game {
     this.el.frameOver.classList.toggle("won", winner === "player");
     this.el.message.classList.remove("show");
     this.messageTimer = 0;
+    this.el.onBall.hidden = true;
     // Let the crowd reaction / last message land before the card appears.
     window.setTimeout(() => {
       if (!this.rules.frameOver) return;
@@ -363,29 +367,35 @@ export class Game {
     else this.audio.applause(0.1 + 0.04 * Math.min(7, r.scored));
   }
 
-  /** Show the next legal ball(s) big in the middle of the screen for a few seconds. */
+  /**
+   * Show the next legal ball(s) big in the middle of the screen for a few
+   * seconds, and keep them in the scoreboard's "On" row until the next turn.
+   */
   private showTargetBanner(): void {
     const target = this.rules.expectedTarget(this.world.balls);
+    this.el.onBall.hidden = target === "—";
     if (target === "—") return;
     const colours: BallColor[] =
       target === "any colour" ? COLOR_ORDER.slice() : [target as BallColor];
-    this.el.targetLabel.textContent =
-      this.rules.current === "player" ? "Your turn" : "Opponent's turn";
-    this.el.targetDots.replaceChildren(
-      ...colours.map((c) => {
+    const dots = (cls: string) =>
+      colours.map((c) => {
         const dot = document.createElement("span");
-        dot.className = "tb-ball";
+        dot.className = cls;
         dot.style.background = `#${BALL_HEX[c].toString(16).padStart(6, "0")}`;
         return dot;
-      }),
-    );
+      });
+    this.el.targetLabel.textContent =
+      this.rules.current === "player" ? "Your turn" : "Opponent's turn";
+    this.el.targetDots.replaceChildren(...dots("tb-ball"));
     this.el.targetDots.classList.toggle("many", colours.length > 1);
     const value = colours.length === 1 ? BALL_VALUES[colours[0] as Exclude<BallColor, "cue">] : 0;
-    this.el.targetName.textContent = value
-      ? `${target} · ${value} pt${value > 1 ? "s" : ""}`
-      : target;
+    const name = value ? `${target} · ${value} pt${value > 1 ? "s" : ""}` : target;
+    this.el.targetName.textContent = name;
     this.el.targetBanner.classList.add("show");
     this.targetTimer = 2.8;
+
+    this.el.onBallDots.replaceChildren(...dots("ob-ball"));
+    this.el.onBallName.textContent = name;
   }
 
   private setIdleForCurrentPlayer(): void {

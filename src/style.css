@@ -118,6 +118,40 @@ button {
   color: #6f86a8;
 }
 
+/* "On" row: the ball(s) to play, always visible under the score. */
+#on-ball {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #dbe5f3;
+}
+
+#on-ball[hidden] {
+  display: none;
+}
+
+#on-ball .ob-label {
+  color: #9db4d8;
+}
+
+#on-ball .ob-dots {
+  display: flex;
+  gap: 3px;
+}
+
+#on-ball .ob-ball {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset -2px -2px 4px rgba(0, 0, 0, 0.45), inset 1px 1px 3px rgba(255, 255, 255, 0.3);
+}
+
 #break-score {
   font-size: 12px;
   letter-spacing: 0.08em;

@@ -15,6 +15,9 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
         <span id="score-ai" class="pts">0</span>
         <span id="row-ai" class="side" title="Computer opponent">CPU <small id="cpu-level-tag"></small></span>
       </div>
+      <div id="on-ball" aria-live="polite" hidden>
+        <span class="ob-label">On</span><span class="ob-dots"></span><span class="ob-name"></span>
+      </div>
       <div id="break-score"></div>
     </div>
     <div id="lock-hint">
