@@ -874,13 +874,60 @@ button {
 }
 
 #overlay .best-frame {
-  margin: 10px 0 0;
-  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  margin: 12px 0 0;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fbbf24;
+  color: #d6e0ee;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+#overlay .best-frame[hidden] {
+  display: none;
+}
+
+#overlay .best-frame > span:first-child {
+  color: #fbbf24;
+}
+
+#overlay .best-frame .current {
+  color: #7dffa8;
+}
+
+.best-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+
+.best-list dt {
+  color: #f4f7fb;
+  font-weight: 600;
+}
+
+.best-list dd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.best-list dd b {
+  color: #fbbf24;
+  font-size: 15px;
+}
+
+.best-list dd small {
+  color: #8ea3c4;
+}
+
+.best-list dd.empty {
+  color: #8ea3c4;
 }
 
 #new-frame-btn {

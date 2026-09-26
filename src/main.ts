@@ -3,7 +3,7 @@ import { Game } from "./game";
 import { loadFrame } from "./save";
 import { CPU_LEVELS, type CpuLevel } from "./ai";
 import { loadSettings, saveSettings } from "./settings";
-import { loadBestFrame } from "./stats";
+import { loadBestFrames } from "./stats";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <canvas id="game"></canvas>
@@ -38,6 +38,9 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
       <button id="settings-toggle" class="icon-btn" type="button" title="Settings" aria-label="Show settings">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
+      <button id="best-toggle" class="icon-btn" type="button" title="Best frames (B)" aria-label="Show best frames">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/></svg>
+      </button>
       <button id="controls-toggle" class="icon-btn" type="button" title="Controls (C)" aria-label="Show controls">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="7"/><path d="M12 6v4"/></svg>
       </button>
@@ -62,6 +65,14 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
       </fieldset>
       <p class="settings-note">Applies from the CPU's next turn and is remembered.</p>
     </div>
+    <div id="best-card" class="panel info-card hidden">
+      <div class="card-head">
+        <h2>Best frames</h2>
+        <button class="card-close" type="button" aria-label="Close best frames">✕</button>
+      </div>
+      <p class="settings-note">Most points you've scored in a finished frame, per CPU level.</p>
+      <dl id="best-list" class="best-list"></dl>
+    </div>
     <div id="controls-card" class="panel info-card hidden">
       <div class="card-head">
         <h2>Controls</h2>
@@ -83,7 +94,8 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
         <dt>Hold RMB</dt><dd>Look around (view returns on release)</dd>
         <dt>Scroll · <kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom</dd>
         <dt>Black lines</dt><dd>Cue-ball path and the object ball's path</dd>
-        <dt><kbd>C</kbd> <kbd>H</kbd> <kbd>M</kbd> <kbd>F</kbd></dt><dd>Controls · rules · sound · full screen</dd>
+        <dt><kbd>C</kbd> <kbd>H</kbd> <kbd>B</kbd></dt><dd>Controls · rules · best frames</dd>
+        <dt><kbd>M</kbd> <kbd>F</kbd></dt><dd>Sound · full screen</dd>
         <dt><kbd>Esc</kbd></dt><dd>Close this card</dd>
       </dl>
     </div>
@@ -161,14 +173,50 @@ const saveInfo = document.querySelector<HTMLParagraphElement>("#save-info")!;
 
 const game = new Game(canvas);
 
-/** Start screen: best frame against the selected CPU level. */
+/** Start screen: best frame for every CPU level, the selected one highlighted. */
 const bestFrameEl = document.querySelector<HTMLParagraphElement>("#best-frame")!;
 function refreshBestFrame(level: CpuLevel): void {
-  const best = loadBestFrame(level);
-  bestFrameEl.hidden = !best;
-  if (best) {
-    bestFrameEl.textContent = `Best frame vs ${CPU_LEVELS.find((l) => l.level === level)!.name}: ${best.points} pts`;
-  }
+  const all = loadBestFrames();
+  bestFrameEl.hidden = !CPU_LEVELS.some((l) => all[l.level]);
+  const label = document.createElement("span");
+  label.textContent = "Best frames";
+  bestFrameEl.replaceChildren(
+    label,
+    ...CPU_LEVELS.map((l) => {
+      const item = document.createElement("span");
+      item.className = l.level === level ? "current" : "";
+      item.textContent = `${l.name} ${all[l.level]?.points ?? "–"}`;
+      return item;
+    }),
+  );
+}
+
+/** Best frames card (in game): every level with points and date. */
+const bestList = document.querySelector<HTMLDListElement>("#best-list")!;
+function renderBestCard(): void {
+  const all = loadBestFrames();
+  bestList.replaceChildren(
+    ...CPU_LEVELS.flatMap((l) => {
+      const dt = document.createElement("dt");
+      dt.textContent = l.name;
+      const dd = document.createElement("dd");
+      const best = all[l.level];
+      if (best) {
+        const pts = document.createElement("b");
+        pts.textContent = `${best.points} pts`;
+        dd.append(pts);
+        if (best.at) {
+          const when = document.createElement("small");
+          when.textContent = new Date(best.at).toLocaleDateString([], { dateStyle: "medium" });
+          dd.append(when);
+        }
+      } else {
+        dd.textContent = "No finished frame yet";
+        dd.className = "empty";
+      }
+      return [dt, dd];
+    }),
+  );
 }
 
 // A frame saved after an earlier shot can be resumed from the start screen.
@@ -342,11 +390,16 @@ const cards = {
     btn: document.querySelector<HTMLButtonElement>("#rules-toggle")!,
     card: document.querySelector<HTMLDivElement>("#rules-card")!,
   },
+  best: {
+    btn: document.querySelector<HTMLButtonElement>("#best-toggle")!,
+    card: document.querySelector<HTMLDivElement>("#best-card")!,
+  },
 };
 type CardName = keyof typeof cards;
 const toggleCard = (name: CardName | null) => {
   for (const [key, { btn, card }] of Object.entries(cards)) {
     const open = key === name && card.classList.contains("hidden");
+    if (open && key === "best") renderBestCard(); // records change at frame end
     card.classList.toggle("hidden", !open);
     btn.classList.toggle("active", open);
   }
@@ -365,5 +418,6 @@ window.addEventListener("keydown", (e) => {
   else if (e.code === "KeyF" && canFullscreen) toggleFullscreen();
   else if (e.code === "KeyH") toggleCard("rules");
   else if (e.code === "KeyC") toggleCard("controls");
+  else if (e.code === "KeyB") toggleCard("best");
   else if (e.code === "Escape") toggleCard(null);
 });

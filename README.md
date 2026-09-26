@@ -18,8 +18,9 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 - Scoreboard shows the score, current break, CPU level and an **On** row with
   the ball(s) to play, so the target is always visible after the turn banner fades
 - Best frame per CPU level: the most points you've scored in a finished frame
-  against Amateur, Club and Pro is kept separately and shown on the start screen
-  (for the selected level) and the end-of-frame card; a frame counts for the
+  against Amateur, Club and Pro is kept separately; all three show on the start
+  screen and in the **Best frames** card (🏆 / `B`, with dates), and the
+  end-of-frame card compares with the level's record; a frame counts for the
   easiest level used during it
 - Frame auto-save: after every shot the position and score are stored in
   `localStorage`; the start screen offers **Continue frame** or **New frame**
@@ -46,6 +47,7 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 | Mouse wheel / `+` `−` | Zoom |
 | `C` | Show / hide controls (`Esc` closes) |
 | `H` | Show / hide rules (`Esc` closes) |
+| `B` | Show / hide best frames |
 | `M` | Sound on / off |
 | `F` | Full screen on / off |
 

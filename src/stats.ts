@@ -46,10 +46,6 @@ export function loadBestFrames(): BestFrames {
   return out;
 }
 
-export function loadBestFrame(level: CpuLevel): BestFrame | null {
-  return loadBestFrames()[level] ?? null;
-}
-
 /** Record a finished frame for `level`; returns that level's best and whether it was beaten. */
 export function recordFrame(points: number, level: CpuLevel): { best: BestFrame | null; isNew: boolean } {
   const all = loadBestFrames();
