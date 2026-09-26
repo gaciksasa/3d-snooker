@@ -9,7 +9,7 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 - Aim the cue, charge power, and shoot (aim line shows the cue-ball and object-ball paths)
 - Ball–ball and cushion physics, pockets
 - Simplified WPBSA-style rules (red/colour alternating, then colours in order)
-- Software opponent with three levels (Settings ⚙, remembered):
+- Software opponent with three levels (chosen on the start screen or in Settings ⚙, remembered):
   **Amateur** (aims by eye), **Club** (checks the pot line, aims for the middle
   of the pocket, plays safe when stuck), **Pro** (simulates its best shots with
   the real physics and plays for position)
