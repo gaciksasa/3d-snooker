@@ -161,11 +161,14 @@ const saveInfo = document.querySelector<HTMLParagraphElement>("#save-info")!;
 
 const game = new Game(canvas);
 
+/** Start screen: best frame against the selected CPU level. */
 const bestFrameEl = document.querySelector<HTMLParagraphElement>("#best-frame")!;
-const best = loadBestFrame();
-if (best) {
-  bestFrameEl.hidden = false;
-  bestFrameEl.textContent = `Best frame: ${best.points} pts · vs ${CPU_LEVELS.find((l) => l.level === best.level)!.name}`;
+function refreshBestFrame(level: CpuLevel): void {
+  const best = loadBestFrame(level);
+  bestFrameEl.hidden = !best;
+  if (best) {
+    bestFrameEl.textContent = `Best frame vs ${CPU_LEVELS.find((l) => l.level === level)!.name}: ${best.points} pts`;
+  }
 }
 
 // A frame saved after an earlier shot can be resumed from the start screen.
@@ -263,6 +266,7 @@ function setCpuLevel(level: CpuLevel): void {
     input.checked = input.value === String(level);
   }
   cpuLevelTag.textContent = CPU_LEVELS.find((l) => l.level === level)!.name;
+  refreshBestFrame(level);
 }
 
 for (const l of CPU_LEVELS) {

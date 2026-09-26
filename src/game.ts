@@ -36,6 +36,8 @@ export class Game {
   /** CPU strength, from the settings card. */
   cpuLevel: CpuLevel = 1;
   private aiDelay = 0;
+  /** Easiest CPU level used in the current frame (for the best-frame record). */
+  private frameLevel: CpuLevel = 3;
   private pixelRatio = 1;
   /** Low-power devices: rolling frame-time average for adaptive resolution. */
   private frameTimeAvg = 1 / 60;
@@ -128,6 +130,7 @@ export class Game {
 
   /** Start a new frame, or resume `save` (a frame stored after an earlier shot). */
   start(save?: FrameSave | null): void {
+    this.frameLevel = this.cpuLevel;
     if (save && applyFrame(save, this.world, this.rules)) {
       this.showMessage("Frame resumed");
     } else {
@@ -150,12 +153,16 @@ export class Game {
       winner === "player" ? "You win the frame!" : winner === "ai" ? "CPU wins the frame" : "Frame drawn";
     this.el.frameOverScore.textContent = `YOU ${this.rules.scores.player} – ${this.rules.scores.ai} CPU`;
     this.el.frameOver.classList.toggle("won", winner === "player");
-    const { best, isNew } = recordFrame(this.rules.scores.player, this.cpuLevel);
+    // Credited to the easiest level played this frame, so switching the CPU
+    // down mid-frame can't set a record against a harder level.
+    const level = Math.min(this.frameLevel, this.cpuLevel) as CpuLevel;
+    const levelName = CPU_LEVELS.find((l) => l.level === level)!.name;
+    const { best, isNew } = recordFrame(this.rules.scores.player, level);
     this.el.frameOverBest.classList.toggle("new", isNew);
     this.el.frameOverBest.textContent = isNew
-      ? `New best frame: ${best!.points} pts!`
+      ? `New best frame vs ${levelName}: ${best!.points} pts!`
       : best
-        ? `Best frame: ${best.points} pts · vs ${CPU_LEVELS.find((l) => l.level === best.level)!.name}`
+        ? `Best frame vs ${levelName}: ${best.points} pts`
         : "";
     this.el.message.classList.remove("show");
     this.messageTimer = 0;
@@ -170,6 +177,7 @@ export class Game {
 
   /** Re-rack and start a fresh frame in place (no page reload). */
   newFrame(): void {
+    this.frameLevel = this.cpuLevel;
     clearFrame();
     const layout = new Map(initialLayout().map((l) => [l.id, l]));
     const y = ballCentreY();
@@ -459,6 +467,7 @@ export class Game {
       this.controls.setCanShoot(false);
       this.phase = "ai_thinking";
       this.pendingAiShot = null;
+      this.frameLevel = Math.min(this.frameLevel, this.cpuLevel) as CpuLevel;
       this.aiPlanner = planAiShot(this.world, this.rules, this.cpuLevel);
       this.advanceAiPlan();
       this.aiDelay = 1.1 + Math.random() * 0.8;

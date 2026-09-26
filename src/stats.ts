@@ -1,35 +1,64 @@
 import type { CpuLevel } from "./ai";
 
-/** Best frame: most points the player scored in one finished frame (localStorage). */
+/** Best frame: most points the player scored in one finished frame. */
 export interface BestFrame {
   points: number;
-  level: CpuLevel;
   /** Epoch ms when it was set. */
   at: number;
 }
 
-const KEY = "3d-snooker:best-frame";
+/** One record per CPU level, kept in localStorage. */
+export type BestFrames = Partial<Record<CpuLevel, BestFrame>>;
 
-export function loadBestFrame(): BestFrame | null {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    const d = JSON.parse(raw) as Partial<BestFrame>;
-    if (typeof d.points !== "number" || !(d.points > 0)) return null;
-    const level = d.level === 2 || d.level === 3 ? d.level : 1;
-    return { points: d.points, level, at: typeof d.at === "number" ? d.at : 0 };
-  } catch {
-    return null;
-  }
+const KEY = "3d-snooker:best-frames";
+/** Earlier single record ({ points, level, at }); moved into its level on first load. */
+const LEGACY_KEY = "3d-snooker:best-frame";
+
+function parseRecord(v: unknown): BestFrame | null {
+  const d = v as Partial<BestFrame> | null;
+  if (!d || typeof d.points !== "number" || !(d.points > 0)) return null;
+  return { points: d.points, at: typeof d.at === "number" ? d.at : 0 };
 }
 
-/** Record a finished frame; returns the (possibly new) best and whether it was beaten. */
-export function recordFrame(points: number, level: CpuLevel): { best: BestFrame | null; isNew: boolean } {
-  const prev = loadBestFrame();
-  if (points <= 0 || (prev && points <= prev.points)) return { best: prev, isNew: false };
-  const best: BestFrame = { points, level, at: Date.now() };
+export function loadBestFrames(): BestFrames {
+  const out: BestFrames = {};
   try {
-    localStorage.setItem(KEY, JSON.stringify(best));
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const d = JSON.parse(raw) as Record<string, unknown>;
+      for (const level of [1, 2, 3] as const) {
+        const r = parseRecord(d[level]);
+        if (r) out[level] = r;
+      }
+    }
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (legacy) {
+      const d = JSON.parse(legacy) as { level?: unknown };
+      const level: CpuLevel = d.level === 2 || d.level === 3 ? d.level : 1;
+      const r = parseRecord(d);
+      if (r && !(out[level] && out[level]!.points >= r.points)) out[level] = r;
+      localStorage.setItem(KEY, JSON.stringify(out));
+      localStorage.removeItem(LEGACY_KEY);
+    }
+  } catch {
+    // Storage blocked or corrupt — start with no records.
+  }
+  return out;
+}
+
+export function loadBestFrame(level: CpuLevel): BestFrame | null {
+  return loadBestFrames()[level] ?? null;
+}
+
+/** Record a finished frame for `level`; returns that level's best and whether it was beaten. */
+export function recordFrame(points: number, level: CpuLevel): { best: BestFrame | null; isNew: boolean } {
+  const all = loadBestFrames();
+  const prev = all[level] ?? null;
+  if (points <= 0 || (prev && points <= prev.points)) return { best: prev, isNew: false };
+  const best: BestFrame = { points, at: Date.now() };
+  all[level] = best;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(all));
   } catch {
     // Storage blocked — the record just won't persist.
   }
