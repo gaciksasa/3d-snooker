@@ -50,6 +50,20 @@ export class PlayerControls {
   /** RMB: free-look without changing aim. */
   private lookingAround = false;
   private onShot: ((dir: THREE.Vector3, power: number) => void) | null = null;
+
+  /**
+   * Touch input (phones / tablets). On once a touch is seen or the primary
+   * pointer is coarse; mouse + keyboard keep working alongside it.
+   */
+  touchMode = matchMedia("(pointer: coarse)").matches;
+  /** Touch "Fine" toggle — same effect as holding Shift. */
+  fineAim = false;
+  /** True while the on-screen power slider is held (power set by the slider). */
+  private touchPowering = false;
+  private touches = new Map<number, { x: number; y: number }>();
+  private pinchDistance = 0;
+  /** Browsers emulate mouse events after a tap; ignore them for a moment. */
+  private lastTouchAt = -Infinity;
   private spectateFocus = new THREE.Vector3();
   private spectateCam = new THREE.Vector3();
 
@@ -67,6 +81,7 @@ export class PlayerControls {
   constructor(camera: THREE.PerspectiveCamera, dom: HTMLElement) {
     this.camera = camera;
     this.dom = dom;
+    if (this.touchMode) document.documentElement.classList.add("touch");
 
     this.buildCueMesh();
     this.cueGroup.visible = false;
@@ -364,7 +379,17 @@ export class PlayerControls {
 
   /** True while aiming without pointer lock (HUD shows a "click to lock" hint). */
   get needsPointerLock(): boolean {
-    return this.canShoot && this.mode === "aim" && !this.pointerLocked;
+    return !this.touchMode && this.canShoot && this.mode === "aim" && !this.pointerLocked;
+  }
+
+  private get recentTouch(): boolean {
+    return performance.now() - this.lastTouchAt < 1000;
+  }
+
+  /** Pointer lock is mouse-only (and missing on iOS). */
+  private lockPointer(): void {
+    if (this.touchMode || this.recentTouch) return;
+    this.dom.requestPointerLock?.();
   }
 
   private ensureAimPointerLock(): void {
@@ -374,7 +399,7 @@ export class PlayerControls {
       !this.pointerLocked &&
       document.pointerLockElement !== this.dom
     ) {
-      this.dom.requestPointerLock();
+      this.lockPointer();
     }
   }
 
@@ -403,7 +428,7 @@ export class PlayerControls {
         return;
       }
       if (!this.pointerLocked && this.mode === "walk") {
-        this.dom.requestPointerLock();
+        this.lockPointer();
       }
     });
 
@@ -414,7 +439,7 @@ export class PlayerControls {
     });
 
     document.addEventListener("mousemove", (e) => {
-      if (!this.enabled || this.watchingShot) return;
+      if (!this.enabled || this.watchingShot || this.recentTouch) return;
 
       if (this.mode === "walk" && this.pointerLocked) {
         this.yaw -= e.movementX * CONTROLS.lookSensitivity;
@@ -438,7 +463,7 @@ export class PlayerControls {
       if (this.charging || (e.buttons & 1) !== 0) return;
 
       // Free mouse: swing / orbit the cue (Shift = fine aim)
-      const fine = e.shiftKey ? CONTROLS.aimFineFactor : 1;
+      const fine = e.shiftKey || this.fineAim ? CONTROLS.aimFineFactor : 1;
       this.aimYaw += e.movementX * CONTROLS.aimSensitivity * fine;
       this.aimPitch -= e.movementY * CONTROLS.aimPitchSensitivity * fine;
       this.aimPitch = THREE.MathUtils.clamp(
@@ -450,7 +475,7 @@ export class PlayerControls {
     });
 
     document.addEventListener("mousedown", (e) => {
-      if (!this.enabled || !this.canShoot || this.mode !== "aim") return;
+      if (!this.enabled || !this.canShoot || this.mode !== "aim" || this.recentTouch) return;
       // Only presses on the table start a shot / look — not clicks on HUD
       // buttons or cards (with pointer lock, the target is always the canvas).
       if (e.target !== this.dom) return;
@@ -475,7 +500,7 @@ export class PlayerControls {
     });
 
     document.addEventListener("mouseup", (e) => {
-      if (!this.enabled || !this.canShoot) return;
+      if (!this.enabled || !this.canShoot || this.recentTouch) return;
 
       if (e.button === 0 && this.mode === "aim" && this.charging) {
         this.charging = false;
@@ -498,6 +523,127 @@ export class PlayerControls {
       },
       { passive: false },
     );
+
+    this.bindTouch();
+  }
+
+  /**
+   * Touch on the table: one finger swings the cue (or looks around when it
+   * isn't your shot), two fingers pinch to zoom and drag to look around.
+   * Power comes from the on-screen slider (beginTouchPower & co.).
+   */
+  private bindTouch(): void {
+    const spread = () => {
+      const [a, b] = [...this.touches.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+    const release = (e: PointerEvent) => {
+      if (!this.touches.delete(e.pointerId)) return;
+      this.lastTouchAt = performance.now();
+      if (this.touches.size < 2 && this.lookingAround && this.canShoot) {
+        // View returns to the aim once the second finger lifts.
+        this.lookingAround = false;
+      }
+    };
+
+    this.dom.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "touch") return;
+      this.setTouchMode();
+      this.lastTouchAt = performance.now();
+      this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      this.dom.setPointerCapture(e.pointerId);
+      if (this.touches.size === 2) {
+        this.pinchDistance = spread();
+        if (this.canShoot && this.mode === "aim") {
+          this.lookingAround = true;
+          this.camera.rotation.order = "YXZ";
+          this.yaw = this.camera.rotation.y;
+          this.pitch = this.camera.rotation.x;
+        }
+      }
+    });
+
+    this.dom.addEventListener("pointermove", (e) => {
+      const prev = this.touches.get(e.pointerId);
+      if (!prev) return;
+      this.lastTouchAt = performance.now();
+      const dx = e.clientX - prev.x;
+      const dy = e.clientY - prev.y;
+      prev.x = e.clientX;
+      prev.y = e.clientY;
+      if (!this.enabled || this.watchingShot) return;
+
+      const look = (k: number) => {
+        this.yaw += dx * CONTROLS.lookSensitivity * k;
+        this.pitch += dy * CONTROLS.lookSensitivity * k;
+        this.pitch = THREE.MathUtils.clamp(this.pitch, -1.4, 1.4);
+      };
+
+      if (this.touches.size >= 2) {
+        const d = spread();
+        this.applyZoom((this.pinchDistance - d) * CONTROLS.touchZoomFactor);
+        this.pinchDistance = d;
+        // Each finger reports its own move: half-weight so the pair moves the view once.
+        look(0.5);
+        return;
+      }
+
+      if (this.mode === "aim" && this.canShoot) {
+        if (this.touchPowering || this.lookingAround) return;
+        const fine = this.fineAim ? CONTROLS.aimFineFactor : 1;
+        this.aimYaw += dx * CONTROLS.touchAimSensitivity * fine;
+        this.aimPitch -= dy * CONTROLS.touchPitchSensitivity * fine;
+        this.aimPitch = THREE.MathUtils.clamp(
+          this.aimPitch,
+          CONTROLS.minAimPitch,
+          CONTROLS.maxAimPitch,
+        );
+        this.syncHitToCueAxis();
+      } else if (this.mode === "walk") {
+        // Drag the scene: finger right turns the view left, like a map.
+        look(1);
+      }
+    });
+
+    this.dom.addEventListener("pointerup", release);
+    this.dom.addEventListener("pointercancel", release);
+  }
+
+  private setTouchMode(): void {
+    if (this.touchMode) return;
+    this.touchMode = true;
+    document.documentElement.classList.add("touch");
+    if (document.pointerLockElement) document.exitPointerLock();
+  }
+
+  /** True when the on-screen power slider may be used. */
+  get canTouchShoot(): boolean {
+    return this.enabled && this.canShoot && this.mode === "aim" && !this.watchingShot;
+  }
+
+  beginTouchPower(): boolean {
+    this.setTouchMode();
+    this.lastTouchAt = performance.now();
+    if (!this.canTouchShoot) return false;
+    this.touchPowering = true;
+    this.charging = false;
+    this.power = 0;
+    return true;
+  }
+
+  setTouchPower(power01: number): void {
+    if (this.touchPowering) this.power = THREE.MathUtils.clamp(power01, 0, 1);
+  }
+
+  /** Lift the finger: shoot, unless the slider was pushed back to (almost) zero. */
+  releaseTouchPower(): void {
+    if (!this.touchPowering) return;
+    this.touchPowering = false;
+    this.lastTouchAt = performance.now();
+    const p = this.power;
+    this.power = 0;
+    if (p < 0.03 || !this.canTouchShoot) return;
+    this.onShot?.(this.getAimDirection(), p);
   }
 
   private applyZoom(deltaY: number): void {
@@ -528,11 +674,12 @@ export class PlayerControls {
       this.lookingAround = false;
       this.camera.fov = THREE.MathUtils.clamp(this.walkFov - 8, 32, 70);
       this.camera.updateProjectionMatrix();
-      this.dom.requestPointerLock();
+      this.lockPointer();
     }
     this.canShoot = value;
     if (!value) {
       this.charging = false;
+      this.touchPowering = false;
       this.lookingAround = false;
       this.power = 0;
     } else {
@@ -791,7 +938,7 @@ export class PlayerControls {
         const turn =
           (this.keys.has("ArrowLeft") ? 1 : 0) - (this.keys.has("ArrowRight") ? 1 : 0);
         if (turn) {
-          const fine = this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
+          const fine = this.fineAim || this.keys.has("ShiftLeft") || this.keys.has("ShiftRight");
           this.aimYaw += turn * (fine ? CONTROLS.aimKeyFineSpeed : CONTROLS.aimKeySpeed) * dt;
         }
       }

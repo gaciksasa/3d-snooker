@@ -126,6 +126,11 @@ export const CONTROLS = {
   aimSensitivity: 0.0009,
   /** Multiplier while Shift is held for fine aiming (≈ 0.5 mm per px at 3 m). */
   aimFineFactor: 0.2,
+  /** Cue swing per px of finger drag (rad/px) — coarser than the mouse. */
+  touchAimSensitivity: 0.003,
+  touchPitchSensitivity: 0.0016,
+  /** Pinch: zoom delta per px change in finger spread. */
+  touchZoomFactor: 3,
   /** Arrow-key aim rotation (rad/s); Shift = fine. */
   aimKeySpeed: 1.4,
   aimKeyFineSpeed: 0.18,

@@ -37,6 +37,17 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 | `H` | Show / hide rules (`Esc` closes) |
 | `M` | Sound on / off |
 
+### Touch (phones / tablets)
+
+| Gesture | Action |
+|---------|--------|
+| Drag one finger | Swing the cue round the ball (up / down raises the butt) |
+| **Fine** button | Slower aim for long pots |
+| Power slider (right edge) | Pull down for power, release to shoot — push back up to cancel |
+| Two fingers | Pinch to zoom · drag to look around |
+
+Touch controls switch on automatically on touch devices; landscape gives the widest view.
+
 ## Run
 
 ```bash

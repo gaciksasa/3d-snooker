@@ -21,6 +21,25 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
+  /* Touch gestures drive the game, not page scroll / zoom. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+/* Touch-only / mouse-only bits (html.touch is set by PlayerControls). */
+:root:not(.touch) .touch-only,
+.touch .mouse-only {
+  display: none !important;
 }
 
 #hud {
@@ -630,6 +649,122 @@ canvas {
   #lock-hint {
     bottom: 128px;
   }
+}
+
+/* Touch: power slider on the right edge — pull down, release to shoot. */
+#touch-shot {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 64px;
+  height: min(44vh, 260px);
+  padding: 10px 0 30px;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 32px;
+  background: rgba(8, 14, 28, 0.55);
+  border: 1px solid rgba(180, 210, 255, 0.2);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#touch-shot.visible {
+  display: flex;
+}
+
+#touch-shot .ts-track {
+  position: relative;
+  flex: 1;
+  width: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#touch-shot .ts-fill {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #4ade80, #fbbf24, #f87171);
+}
+
+#touch-shot .ts-knob {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #d9d4c7 60%, #a8a293);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+#touch-shot.active .ts-knob {
+  box-shadow: 0 0 0 4px rgba(125, 255, 168, 0.5), 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+#touch-shot .ts-label {
+  position: absolute;
+  bottom: 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9db4d8;
+}
+
+#fine-toggle {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 64px;
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(180, 210, 255, 0.25);
+  background: rgba(8, 14, 28, 0.6);
+  color: #cdd9ee;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  display: none;
+  pointer-events: auto;
+}
+
+#fine-toggle.visible {
+  display: block;
+}
+
+#fine-toggle[aria-pressed="true"] {
+  color: #7dffa8;
+  border-color: rgba(125, 255, 168, 0.7);
+  background: rgba(125, 255, 168, 0.14);
+}
+
+/* Touch: the slider shows power, so drop the bottom bar; hint goes up top. */
+.touch #power-wrap {
+  display: none !important;
+}
+
+.touch #lock-hint {
+  top: 12px;
+  bottom: auto !important;
+}
+
+/* Portrait phones: slider a bit shorter so it clears the icon column. */
+@media (max-width: 500px) {
+  #touch-shot {
+    height: min(34vh, 240px);
+  }
+}
+
+#cpu-level-tag {
+  font-size: 0.72em;
+  opacity: 0.75;
 }
 
 /* End-of-frame result card */

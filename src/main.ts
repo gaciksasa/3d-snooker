@@ -13,11 +13,19 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
         <span id="score-player" class="pts">0</span>
         <span class="sep">–</span>
         <span id="score-ai" class="pts">0</span>
-        <span id="row-ai" class="side" title="Computer opponent">CPU</span>
+        <span id="row-ai" class="side" title="Computer opponent">CPU <small id="cpu-level-tag"></small></span>
       </div>
       <div id="break-score"></div>
     </div>
-    <div id="lock-hint">Click the table to aim freely · or use <kbd>←</kbd> <kbd>→</kbd></div>
+    <div id="lock-hint">
+      <span class="mouse-only">Click the table to aim freely · or use <kbd>←</kbd> <kbd>→</kbd></span>
+      <span class="touch-only">Drag to aim · pull the slider down to shoot</span>
+    </div>
+    <div id="touch-shot" class="touch-only" aria-label="Power: pull down, release to shoot">
+      <div class="ts-track"><div class="ts-fill"></div><div class="ts-knob"></div></div>
+      <div class="ts-label">Pull</div>
+    </div>
+    <button id="fine-toggle" class="touch-only" type="button" aria-pressed="false">Fine</button>
     <div id="power-wrap">
       <div id="power-label">Power</div>
       <div id="power-bar"><div id="power-fill"></div></div>
@@ -52,7 +60,14 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
         <h2>Controls</h2>
         <button class="card-close" type="button" aria-label="Close controls">✕</button>
       </div>
-      <dl class="controls-list">
+      <dl class="controls-list touch-only">
+        <dt>Drag</dt><dd>Swing the cue round the ball (up / down raises the butt)</dd>
+        <dt>Fine</dt><dd>Slower aim for long pots</dd>
+        <dt>Power slider</dt><dd>Pull down for power, release to shoot — push back up to cancel</dd>
+        <dt>Two fingers</dt><dd>Pinch to zoom · drag to look around</dd>
+        <dt>Black lines</dt><dd>Cue-ball path and the object ball's path</dd>
+      </dl>
+      <dl class="controls-list mouse-only">
         <dt>Mouse</dt><dd>Aim the cue (click the table to lock the pointer)</dd>
         <dt><kbd>Shift</kbd> + mouse</dt><dd>Fine aim — 5× slower, for long pots</dd>
         <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Swing the cue round the ball (<kbd>Shift</kbd> = fine)</dd>
@@ -173,6 +188,7 @@ const settings = loadSettings();
 game.cpuLevel = settings.cpuLevel;
 const levelsBox = document.querySelector<HTMLDivElement>("#cpu-levels")!;
 const startLevelsBox = document.querySelector<HTMLDivElement>("#start-cpu-levels")!;
+const cpuLevelTag = document.querySelector<HTMLElement>("#cpu-level-tag")!;
 
 function setCpuLevel(level: CpuLevel): void {
   settings.cpuLevel = level;
@@ -183,6 +199,7 @@ function setCpuLevel(level: CpuLevel): void {
   )) {
     input.checked = input.value === String(level);
   }
+  cpuLevelTag.textContent = CPU_LEVELS.find((l) => l.level === level)!.name;
 }
 
 for (const l of CPU_LEVELS) {
@@ -214,6 +231,35 @@ for (const l of CPU_LEVELS) {
   startLevelsBox.append(seg);
 }
 setCpuLevel(settings.cpuLevel);
+
+// Touch: power slider (pull down, release to shoot) and fine-aim toggle.
+const touchShot = document.querySelector<HTMLDivElement>("#touch-shot")!;
+const touchTrack = touchShot.querySelector<HTMLDivElement>(".ts-track")!;
+let touchStartY = 0;
+touchShot.addEventListener("pointerdown", (e) => {
+  if (!game.controls.beginTouchPower()) return;
+  touchShot.setPointerCapture(e.pointerId);
+  touchStartY = e.clientY;
+  touchShot.classList.add("active");
+});
+touchShot.addEventListener("pointermove", (e) => {
+  if (!touchShot.classList.contains("active")) return;
+  game.controls.setTouchPower((e.clientY - touchStartY) / touchTrack.clientHeight);
+});
+const endTouchShot = (cancel: boolean) => {
+  if (!touchShot.classList.contains("active")) return;
+  touchShot.classList.remove("active");
+  if (cancel) game.controls.setTouchPower(0);
+  game.controls.releaseTouchPower();
+};
+touchShot.addEventListener("pointerup", () => endTouchShot(false));
+touchShot.addEventListener("pointercancel", () => endTouchShot(true));
+
+const fineBtn = document.querySelector<HTMLButtonElement>("#fine-toggle")!;
+fineBtn.addEventListener("click", () => {
+  game.controls.fineAim = !game.controls.fineAim;
+  fineBtn.setAttribute("aria-pressed", String(game.controls.fineAim));
+});
 
 /** Settings / controls / rules cards: at most one open, each toggled by its icon button. */
 const cards = {

@@ -35,6 +35,8 @@ export class Game {
   /** CPU strength, from the settings card. */
   cpuLevel: CpuLevel = 1;
   private aiDelay = 0;
+  /** Touch hint shows until the player's first touch shot. */
+  private touchHintSeen = false;
 
   private el = {
     playerScore: document.querySelector("#score-player") as HTMLElement,
@@ -46,6 +48,10 @@ export class Game {
     message: document.querySelector("#message") as HTMLElement,
     breakScore: document.querySelector("#break-score") as HTMLElement,
     lockHint: document.querySelector("#lock-hint") as HTMLElement,
+    touchShot: document.querySelector("#touch-shot") as HTMLElement,
+    fineToggle: document.querySelector("#fine-toggle") as HTMLElement,
+    touchFill: document.querySelector("#touch-shot .ts-fill") as HTMLElement,
+    touchKnob: document.querySelector("#touch-shot .ts-knob") as HTMLElement,
     frameOver: document.querySelector("#frame-over") as HTMLElement,
     frameOverTitle: document.querySelector("#frame-over .fo-title") as HTMLElement,
     frameOverScore: document.querySelector("#frame-over .fo-score") as HTMLElement,
@@ -62,7 +68,9 @@ export class Game {
       alpha: false,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Phones: cap the render resolution — full DPR costs a lot of fill rate.
+    const coarse = matchMedia("(pointer: coarse)").matches;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.5 : 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     // Soft filtered shadows from the near-vertical key light (bias tuned in render.ts).
     this.renderer.shadowMap.enabled = true;
@@ -216,15 +224,23 @@ export class Game {
     for (const b of this.world.balls) syncBallMesh(b, dt);
     this.audio.setListener(this.camera);
 
-    this.el.lockHint.classList.toggle("show", this.controls.needsPointerLock);
+    const aiming = this.controls.mode === "aim" && this.controls.canShoot;
+    this.el.lockHint.classList.toggle(
+      "show",
+      this.controls.needsPointerLock || (this.controls.touchMode && aiming && !this.touchHintSeen),
+    );
 
     // Power UI
-    if (this.controls.mode === "aim" && this.controls.canShoot) {
+    if (aiming) {
       this.el.powerWrap.classList.add("visible");
       this.el.powerFill.style.width = `${this.controls.power * 100}%`;
     } else {
       this.el.powerWrap.classList.remove("visible");
     }
+    this.el.touchShot.classList.toggle("visible", aiming);
+    this.el.fineToggle.classList.toggle("visible", aiming);
+    this.el.touchFill.style.height = `${this.controls.power * 100}%`;
+    this.el.touchKnob.style.top = `${this.controls.power * 100}%`;
 
     if (this.targetTimer > 0) {
       this.targetTimer -= dt;
@@ -265,6 +281,7 @@ export class Game {
     if (this.phase !== "idle" || this.rules.current !== "player") return;
     const cue = this.world.balls.find((b) => b.color === "cue" && !b.pocketed);
     if (!cue) return;
+    if (this.controls.touchMode) this.touchHintSeen = true;
     this.audio.cueStrike(power, cue.position.x, cue.position.z);
     applyShot(cue, dir, power);
     this.beginSimulation(false);
