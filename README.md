@@ -7,12 +7,16 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 - Full-size table to WPBSA proportions (playing area **3569 × 1778 mm**)
 - **22 balls**: 15 reds + yellow, green, brown, blue, pink, black + cue ball (Ø 52.5 mm)
 - Aim the cue, charge power, and shoot (aim line shows the cue-ball and object-ball paths)
-- Ball–ball and cushion physics, pockets
+- Custom physics engine (no physics library): substeps at 480 Hz or more,
+  ball–ball contacts rewound to the exact moment of impact, cushion jaws and
+  pocket wells measured from the table model — open 45° jaws at every pocket
 - Simplified WPBSA-style rules (red/colour alternating, then colours in order)
 - Software opponent with three levels (chosen on the start screen or in Settings ⚙, remembered):
   **Amateur** (aims by eye), **Club** (checks the pot line, aims for the middle
   of the pocket, plays safe when stuck), **Pro** (simulates its best shots with
   the real physics and plays for position)
+- Scoreboard shows the score, current break, CPU level and an **On** row with
+  the ball(s) to play, so the target is always visible after the turn banner fades
 - Best frame: the most points you've scored in a finished frame (and the CPU
   level it was against) is remembered and shown on the start screen and the
   end-of-frame card
@@ -21,6 +25,9 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 - PBR graphics: procedural baize / mahogany / ash textures, lacquered balls with
   environment reflections, canopy area light, soft shadows, bloom + vignette,
   visible ball roll (dotted cue ball) and pot drop animation
+- Mobile: touch controls, a lighter render profile (smaller shadow map, 2× MSAA,
+  no bloom) and resolution that steps down automatically if the frame rate stays low;
+  physics runs on real time, so slow devices drop frames instead of slowing down
 - Audio: recorded ball–ball clacks and crowd applause (CC0, see
   `public/sounds/CREDITS.md`), synthesised cue / cushion / pocket sounds, room
   reverb and stereo positioning relative to the camera
@@ -59,6 +66,14 @@ npm run dev       # dev server
 npm run build     # type-check + production build into dist/
 npm run preview   # serve the production build
 ```
+
+## Deploy
+
+The build is a plain static site — no backend, no database. Upload the
+**contents** of `dist/` to the web root of a domain or subdomain (it expects to
+be served from `/`). `dist/.htaccess` (from `public/`) forces HTTPS and sets
+compression and caching on Apache hosts. `index.html` carries Open Graph /
+Twitter tags pointing at `og-image.jpg` for link previews.
 
 ## Rules (implemented)
 
