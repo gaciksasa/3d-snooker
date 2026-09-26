@@ -41,7 +41,9 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 
 ```bash
 npm install
-npm run dev
+npm run dev       # dev server
+npm run build     # type-check + production build into dist/
+npm run preview   # serve the production build
 ```
 
 ## Rules (implemented)
@@ -50,4 +52,11 @@ npm run dev
 - Repeat until all reds are gone
 - Then pot colours in order: yellow (2) → green (3) → brown (4) → blue (5) → pink (6) → black (7)
 - Fouls award points to the opponent (cue ball pot, wrong first contact, wrong pot, miss)
+- Foul value is the highest value of the balls involved (ball on, ball hit first,
+  balls wrongly potted), with a minimum of **4**
 - Cue ball fouls return the cue ball in the **D**
+
+### Simplifications
+
+- A foul on the final black respots it instead of ending the frame
+- A tied score after the final black is a draw (no re-spotted black)
