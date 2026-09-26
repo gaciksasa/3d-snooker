@@ -59,6 +59,12 @@ export function createEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture 
   return rt.texture;
 }
 
+/**
+ * Phones / tablets (coarse pointer): cheaper shadows, less MSAA, no bloom.
+ * Desktop keeps the full-quality settings.
+ */
+export const LOW_POWER = matchMedia("(pointer: coarse)").matches;
+
 /** Lighting rig: canopy area light + a shadow-casting key straight down. */
 export function setupLights(scene: THREE.Scene): void {
   RectAreaLightUniformsLib.init();
@@ -79,7 +85,7 @@ export function setupLights(scene: THREE.Scene): void {
   key.position.set(0.12, 4, 0.2);
   key.target.position.set(0, TABLE.clothY, 0);
   key.castShadow = true;
-  key.shadow.mapSize.set(4096, 4096);
+  key.shadow.mapSize.setScalar(LOW_POWER ? 1024 : 4096);
   const cam = key.shadow.camera;
   cam.left = -TABLE.width / 2 - 0.35;
   cam.right = TABLE.width / 2 + 0.35;
@@ -90,7 +96,7 @@ export function setupLights(scene: THREE.Scene): void {
   key.shadow.bias = -0.0004;
   key.shadow.normalBias = 0.006;
   key.shadow.radius = 5;
-  key.shadow.blurSamples = 16;
+  key.shadow.blurSamples = LOW_POWER ? 8 : 16;
   scene.add(key);
   scene.add(key.target);
 
@@ -139,6 +145,7 @@ export interface PostFX {
   composer: EffectComposer;
   render(dt: number): void;
   setSize(w: number, h: number): void;
+  setPixelRatio(pr: number): void;
 }
 
 export function createPostFX(
@@ -151,11 +158,13 @@ export function createPostFX(
   // MSAA on the HDR target — the composer would otherwise lose antialiasing.
   const target = new THREE.WebGLRenderTarget(size.x * pr, size.y * pr, {
     type: THREE.HalfFloatType,
-    samples: 4,
+    samples: LOW_POWER ? 2 : 4,
   });
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.2, 0.4, 1.25);
+  // Bloom is a chain of blur passes — too much fill rate for a phone GPU.
+  bloom.enabled = !LOW_POWER;
   composer.addPass(bloom);
   const vignette = new ShaderPass(VignetteShader);
   composer.addPass(vignette);
@@ -172,6 +181,9 @@ export function createPostFX(
     setSize(w: number, h: number) {
       composer.setSize(w, h);
       bloom.setSize(w, h);
+    },
+    setPixelRatio(pr: number) {
+      composer.setPixelRatio(pr);
     },
   };
 }

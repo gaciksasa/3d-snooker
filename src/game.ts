@@ -6,7 +6,7 @@ import { PlayerControls } from "./controls";
 import { PhysicsWorld } from "./physics";
 import { SnookerRules } from "./rules";
 import { loadTableModel } from "./table";
-import { createEnvironment, createPostFX, setupLights, type PostFX } from "./render";
+import { LOW_POWER, createEnvironment, createPostFX, setupLights, type PostFX } from "./render";
 import { BALL_HEX, BALL_VALUES, COLOR_ORDER, ballCentreY, type BallColor } from "./constants";
 import { applyFrame, clearFrame, saveFrame, type FrameSave } from "./save";
 import { recordFrame } from "./stats";
@@ -36,6 +36,10 @@ export class Game {
   /** CPU strength, from the settings card. */
   cpuLevel: CpuLevel = 1;
   private aiDelay = 0;
+  private pixelRatio = 1;
+  /** Low-power devices: rolling frame-time average for adaptive resolution. */
+  private frameTimeAvg = 1 / 60;
+  private slowFor = 0;
   /** Touch hint shows until the player's first touch shot. */
   private touchHintSeen = false;
 
@@ -69,13 +73,16 @@ export class Game {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
-      antialias: true,
+      // The post-FX chain renders into its own MSAA target and blits a
+      // full-screen quad, so canvas antialiasing only costs memory on phones.
+      antialias: !LOW_POWER,
       alpha: false,
       powerPreference: "high-performance",
     });
     // Phones: cap the render resolution — full DPR costs a lot of fill rate.
-    const coarse = matchMedia("(pointer: coarse)").matches;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.5 : 2));
+    // It is lowered further at run time if the frame rate stays low.
+    this.pixelRatio = Math.min(window.devicePixelRatio, LOW_POWER ? 1.5 : 2);
+    this.renderer.setPixelRatio(this.pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     // Soft filtered shadows from the near-vertical key light (bias tuned in render.ts).
     this.renderer.shadowMap.enabled = true;
@@ -192,6 +199,24 @@ export class Game {
     return this.audio.toggle();
   }
 
+  /**
+   * Phones: if frames stay slow (< ~40 fps) for a couple of seconds, drop the
+   * render resolution a step (down to 1×). Never raises it again, so the
+   * picture doesn't flip back and forth.
+   */
+  private adaptResolution(rawDt: number): void {
+    if (rawDt <= 0 || rawDt > 0.5) return; // tab switch / first frame
+    this.frameTimeAvg += (rawDt - this.frameTimeAvg) * 0.05;
+    this.slowFor = this.frameTimeAvg > 1 / 40 ? this.slowFor + rawDt : 0;
+    if (this.slowFor < 2 || this.pixelRatio <= 1) return;
+    this.pixelRatio = Math.max(1, this.pixelRatio - 0.25);
+    this.renderer.setPixelRatio(this.pixelRatio);
+    this.fx.setPixelRatio(this.pixelRatio);
+    this.onResize();
+    this.slowFor = 0;
+    this.frameTimeAvg = 1 / 60;
+  }
+
   private onResize(): void {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
@@ -201,10 +226,27 @@ export class Game {
 
   private frame(): void {
     this.timer.update();
-    const dt = Math.min(this.timer.getDelta(), 0.05);
+    const rawDt = this.timer.getDelta();
+    // Timers, camera and animations: real time too, capped at 100 ms per frame.
+    const dt = Math.min(rawDt, 0.1);
+    if (LOW_POWER) this.adaptResolution(rawDt);
 
     if (this.phase === "simulating") {
-      const result = this.world.step(dt);
+      // Physics runs on real elapsed time (in ≤ 50 ms chunks), so a slow
+      // device drops frames instead of playing the shot in slow motion.
+      // Capped at 0.25 s so a backgrounded tab doesn't jump on return.
+      let left = Math.min(rawDt, 0.25);
+      const result = this.world.step(Math.min(left, 0.05));
+      for (left -= 0.05; left > 1e-6 && !this.world.isSettled(); left -= 0.05) {
+        const more = this.world.step(Math.min(left, 0.05));
+        if (!result.firstContact) result.firstContact = more.firstContact;
+        result.pocketed.push(...more.pocketed);
+        result.cuePocketed ||= more.cuePocketed;
+        result.cushionHits += more.cushionHits;
+        result.ballImpacts.push(...more.ballImpacts);
+        result.cushionImpacts.push(...more.cushionImpacts);
+        result.pocketImpacts.push(...more.pocketImpacts);
+      }
       if (result.firstContact && !this.firstContact) {
         this.firstContact = result.firstContact;
       }
