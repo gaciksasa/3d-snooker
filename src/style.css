@@ -44,7 +44,9 @@ button {
 
 #hud {
   position: fixed;
-  inset: 0;
+  /* Keep the HUD clear of notches / rounded corners (viewport-fit=cover). */
+  inset: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
   pointer-events: none;
   z-index: 10;
 }
@@ -437,11 +439,18 @@ button {
   color: #7dffa8;
 }
 
+#fullscreen-toggle[hidden] {
+  display: none;
+}
+
+#fullscreen-toggle .off,
+#fullscreen-toggle.active .on,
 #sound-toggle .off,
 #sound-toggle.muted .on {
   display: none;
 }
 
+#fullscreen-toggle.active .off,
 #sound-toggle.muted .off {
   display: inline;
 }

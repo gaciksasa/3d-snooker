@@ -3,7 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: draw under the notch; the HUD pads itself with safe-area insets. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0908" />
+
+    <!-- Home-screen app: the only way to get full screen on iPhone (Safari has no
+         Fullscreen API for pages); Android also opens it without browser chrome. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Snooker" />
     <title>3D Snooker</title>
     <meta name="description" content="Full-size 3D snooker in the browser: WPBSA table, custom physics and a CPU opponent with three levels. Plays on desktop and mobile." />
 

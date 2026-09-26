@@ -44,6 +44,9 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
       <button id="rules-toggle" class="icon-btn" type="button" title="Rules (H)" aria-label="Show rules">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z"/></svg>
       </button>
+      <button id="fullscreen-toggle" class="icon-btn" type="button" title="Full screen (F)" aria-label="Toggle full screen" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><g class="on"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></g><g class="off"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></g></svg>
+      </button>
       <button id="sound-toggle" class="icon-btn" type="button" title="Sound (M)" aria-label="Toggle sound">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><g class="on"><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></g><g class="off"><path d="m16 9 6 6"/><path d="m22 9-6 6"/></g></svg>
       </button>
@@ -70,6 +73,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
         <dt>Power slider</dt><dd>Pull down for power, release to shoot — push back up to cancel</dd>
         <dt>Two fingers</dt><dd>Pinch to zoom · drag to look around</dd>
         <dt>Black lines</dt><dd>Cue-ball path and the object ball's path</dd>
+        <dt>Full screen</dt><dd id="fullscreen-help">Tap ⛶ — landscape gives the widest view</dd>
       </dl>
       <dl class="controls-list mouse-only">
         <dt>Mouse</dt><dd>Aim the cue (click the table to lock the pointer)</dd>
@@ -79,7 +83,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
         <dt>Hold RMB</dt><dd>Look around (view returns on release)</dd>
         <dt>Scroll · <kbd>+</kbd> <kbd>−</kbd></dt><dd>Zoom</dd>
         <dt>Black lines</dt><dd>Cue-ball path and the object ball's path</dd>
-        <dt><kbd>C</kbd> <kbd>H</kbd> <kbd>M</kbd></dt><dd>Controls · rules · sound</dd>
+        <dt><kbd>C</kbd> <kbd>H</kbd> <kbd>M</kbd> <kbd>F</kbd></dt><dd>Controls · rules · sound · full screen</dd>
         <dt><kbd>Esc</kbd></dt><dd>Close this card</dd>
       </dl>
     </div>
@@ -180,14 +184,60 @@ if (saved) {
   saveInfo.textContent = `Saved ${when}. Starting a new frame discards it.`;
 }
 
-continueBtn.addEventListener("click", () => {
+// Full screen: the Fullscreen API where it exists (Android, iPad, desktop).
+// iPhone Safari has none for pages — there only the home-screen app is full screen.
+type FsElement = HTMLElement & { webkitRequestFullscreen?: () => void };
+type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
+const fsRoot = document.documentElement as FsElement;
+const fsDoc = document as FsDocument;
+const canFullscreen = !!(fsRoot.requestFullscreen || fsRoot.webkitRequestFullscreen);
+const standalone =
+  matchMedia("(display-mode: fullscreen), (display-mode: standalone)").matches ||
+  (navigator as Navigator & { standalone?: boolean }).standalone === true;
+const isFullscreen = () => !!(document.fullscreenElement || fsDoc.webkitFullscreenElement);
+
+function enterFullscreen(): void {
+  const lockLandscape = () => {
+    // Android only; everywhere else this rejects or is missing — harmless.
+    const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    o?.lock?.("landscape").catch(() => {});
+  };
+  try {
+    if (fsRoot.requestFullscreen) {
+      fsRoot.requestFullscreen({ navigationUI: "hide" }).then(lockLandscape, () => {});
+    } else {
+      fsRoot.webkitRequestFullscreen?.();
+    }
+  } catch {
+    // Denied — keep playing in the page.
+  }
+}
+
+function toggleFullscreen(): void {
+  if (!isFullscreen()) enterFullscreen();
+  else if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  else fsDoc.webkitExitFullscreen?.();
+}
+
+const fullscreenBtn = document.querySelector<HTMLButtonElement>("#fullscreen-toggle")!;
+fullscreenBtn.hidden = !canFullscreen || standalone;
+fullscreenBtn.addEventListener("click", toggleFullscreen);
+const refreshFullscreenBtn = () => fullscreenBtn.classList.toggle("active", isFullscreen());
+document.addEventListener("fullscreenchange", refreshFullscreenBtn);
+document.addEventListener("webkitfullscreenchange", refreshFullscreenBtn);
+if (!canFullscreen && !standalone) {
+  document.querySelector("#fullscreen-help")!.textContent =
+    "Share → Add to Home Screen, then open it from there";
+}
+
+/** Phones / tablets go full screen when the frame starts (needs this tap). */
+function startFrame(save: typeof saved): void {
+  if (game.controls.touchMode && canFullscreen && !standalone && !isFullscreen()) enterFullscreen();
   overlay.classList.add("hidden");
-  game.start(saved);
-});
-startBtn.addEventListener("click", () => {
-  overlay.classList.add("hidden");
-  game.start(null);
-});
+  game.start(save);
+}
+continueBtn.addEventListener("click", () => startFrame(saved));
+startBtn.addEventListener("click", () => startFrame(null));
 
 const soundBtn = document.querySelector<HTMLButtonElement>("#sound-toggle")!;
 const refreshSoundBtn = (on: boolean) => {
@@ -308,6 +358,7 @@ newFrameBtn.addEventListener("click", () => game.newFrame());
 window.addEventListener("keydown", (e) => {
   if ((e.code === "Enter" || e.code === "NumpadEnter") && game.isFrameOver) game.newFrame();
   else if (e.code === "KeyM") refreshSoundBtn(game.toggleSound());
+  else if (e.code === "KeyF" && canFullscreen) toggleFullscreen();
   else if (e.code === "KeyH") toggleCard("rules");
   else if (e.code === "KeyC") toggleCard("controls");
   else if (e.code === "Escape") toggleCard(null);

@@ -46,6 +46,7 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 | `C` | Show / hide controls (`Esc` closes) |
 | `H` | Show / hide rules (`Esc` closes) |
 | `M` | Sound on / off |
+| `F` | Full screen on / off |
 
 ### Touch (phones / tablets)
 
@@ -57,6 +58,12 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
 | Two fingers | Pinch to zoom · drag to look around |
 
 Touch controls switch on automatically on touch devices; landscape gives the widest view.
+
+**Full screen on mobile:** on Android and iPad the game goes full screen (and
+locks landscape where allowed) when you tap **Start frame**; the ⛶ button
+toggles it. iPhone Safari has no full-screen mode for web pages, so there use
+**Share → Add to Home Screen** and open the game from the home screen — the web
+manifest makes it launch without browser bars.
 
 ## Run
 
