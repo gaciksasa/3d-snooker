@@ -113,11 +113,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   </div>
   <div id="overlay">
     <div class="card">
-      <h1>3D Snooker</h1>
-      <p>
-        Full-size snooker table (3.569 × 1.778 m), 22 balls, WPBSA-style rules.
-        Aim the cue ball, set your power, and play against an opponent.
-      </p>
+      <h1 class="visually-hidden">3D Snooker</h1>
       <div class="overlay-actions">
         <button id="continue-btn" type="button" hidden>Continue frame</button>
         <button id="start-btn" type="button">Start frame</button>
