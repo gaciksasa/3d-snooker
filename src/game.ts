@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { AudioEngine } from "./audio";
 import { createInitialBalls, initialLayout, markRestored, syncBallMesh } from "./balls";
-import { applyShot, computeAiShot, planAiShot, type AiShot, type CpuLevel } from "./ai";
+import { CPU_LEVELS, applyShot, computeAiShot, planAiShot, type AiShot, type CpuLevel } from "./ai";
 import { PlayerControls } from "./controls";
 import { PhysicsWorld } from "./physics";
 import { SnookerRules } from "./rules";
@@ -9,6 +9,7 @@ import { loadTableModel } from "./table";
 import { createEnvironment, createPostFX, setupLights, type PostFX } from "./render";
 import { BALL_HEX, BALL_VALUES, COLOR_ORDER, ballCentreY, type BallColor } from "./constants";
 import { applyFrame, clearFrame, saveFrame, type FrameSave } from "./save";
+import { recordFrame } from "./stats";
 
 type Phase = "idle" | "simulating" | "resolving" | "ai_thinking";
 
@@ -55,6 +56,7 @@ export class Game {
     frameOver: document.querySelector("#frame-over") as HTMLElement,
     frameOverTitle: document.querySelector("#frame-over .fo-title") as HTMLElement,
     frameOverScore: document.querySelector("#frame-over .fo-score") as HTMLElement,
+    frameOverBest: document.querySelector("#frame-over .fo-best") as HTMLElement,
     targetBanner: document.querySelector("#target-banner") as HTMLElement,
     onBall: document.querySelector("#on-ball") as HTMLElement,
     onBallDots: document.querySelector("#on-ball .ob-dots") as HTMLElement,
@@ -141,6 +143,13 @@ export class Game {
       winner === "player" ? "You win the frame!" : winner === "ai" ? "CPU wins the frame" : "Frame drawn";
     this.el.frameOverScore.textContent = `YOU ${this.rules.scores.player} – ${this.rules.scores.ai} CPU`;
     this.el.frameOver.classList.toggle("won", winner === "player");
+    const { best, isNew } = recordFrame(this.rules.scores.player, this.cpuLevel);
+    this.el.frameOverBest.classList.toggle("new", isNew);
+    this.el.frameOverBest.textContent = isNew
+      ? `New best frame: ${best!.points} pts!`
+      : best
+        ? `Best frame: ${best.points} pts · vs ${CPU_LEVELS.find((l) => l.level === best.level)!.name}`
+        : "";
     this.el.message.classList.remove("show");
     this.messageTimer = 0;
     this.el.onBall.hidden = true;

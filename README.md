@@ -13,6 +13,9 @@ Browser snooker game built with [Three.js](https://threejs.org/) and TypeScript.
   **Amateur** (aims by eye), **Club** (checks the pot line, aims for the middle
   of the pocket, plays safe when stuck), **Pro** (simulates its best shots with
   the real physics and plays for position)
+- Best frame: the most points you've scored in a finished frame (and the CPU
+  level it was against) is remembered and shown on the start screen and the
+  end-of-frame card
 - Frame auto-save: after every shot the position and score are stored in
   `localStorage`; the start screen offers **Continue frame** or **New frame**
 - PBR graphics: procedural baize / mahogany / ash textures, lacquered balls with

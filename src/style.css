@@ -847,6 +847,33 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+#frame-over .fo-best {
+  margin: -10px 0 18px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9db4d8;
+}
+
+#frame-over .fo-best:empty {
+  display: none;
+}
+
+#frame-over .fo-best.new {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+#overlay .best-frame {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fbbf24;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
 #new-frame-btn {
   cursor: pointer;
   border: none;

@@ -3,6 +3,7 @@ import { Game } from "./game";
 import { loadFrame } from "./save";
 import { CPU_LEVELS, type CpuLevel } from "./ai";
 import { loadSettings, saveSettings } from "./settings";
+import { loadBestFrame } from "./stats";
 
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
   <canvas id="game"></canvas>
@@ -125,6 +126,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
     <div id="frame-over" class="panel" role="dialog" aria-label="Frame over">
       <div class="fo-title"></div>
       <div class="fo-score"></div>
+      <div class="fo-best"></div>
       <button id="new-frame-btn" type="button">New frame</button>
       <div class="fo-hint">or press <kbd>Enter</kbd></div>
     </div>
@@ -141,6 +143,7 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
         <button id="start-btn" type="button">Start frame</button>
       </div>
       <p id="save-info" class="save-info" hidden></p>
+      <p id="best-frame" class="best-frame" hidden></p>
     </div>
   </div>
 `;
@@ -153,6 +156,13 @@ const continueBtn = document.querySelector<HTMLButtonElement>("#continue-btn")!;
 const saveInfo = document.querySelector<HTMLParagraphElement>("#save-info")!;
 
 const game = new Game(canvas);
+
+const bestFrameEl = document.querySelector<HTMLParagraphElement>("#best-frame")!;
+const best = loadBestFrame();
+if (best) {
+  bestFrameEl.hidden = false;
+  bestFrameEl.textContent = `Best frame: ${best.points} pts · vs ${CPU_LEVELS.find((l) => l.level === best.level)!.name}`;
+}
 
 // A frame saved after an earlier shot can be resumed from the start screen.
 const saved = loadFrame();
