@@ -164,10 +164,20 @@ function potPower(distCue: number, distPocket: number, cutCos: number): number {
   return THREE.MathUtils.clamp(vCue / PHYSICS.maxShotSpeed, 0.12, 0.95);
 }
 
-/** Aim / power error per level (level 1 has its own, larger error). */
+/**
+ * Shot error per level: max aim error (rad, uniform ±) and power error
+ * (fraction, uniform ±). Tuned so each level's pot rate stays where it was
+ * before the pocket jaws were opened to 45°.
+ */
+export const AI_ERROR: Record<CpuLevel, { aim: number; power: number }> = {
+  1: { aim: 0.065, power: 0.06 },
+  2: { aim: 0.011, power: 0.07 },
+  3: { aim: 0.0025, power: 0.03 },
+};
+
 function withNoise(shot: AiShot, level: CpuLevel): AiShot {
-  const aimErr = level === 3 ? 0.0025 : 0.008;
-  const powErr = level === 3 ? 0.03 : 0.06;
+  const aimErr = AI_ERROR[level].aim;
+  const powErr = AI_ERROR[level].power;
   return {
     direction: rotate(shot.direction, (Math.random() * 2 - 1) * aimErr),
     power: THREE.MathUtils.clamp(shot.power * (1 + (Math.random() * 2 - 1) * powErr), 0.08, 1),
@@ -333,11 +343,11 @@ function amateurShot(world: PhysicsWorld, rules: SnookerRules): AiShot {
 
   if (best) {
     // Slight inaccuracy so AI isn't perfect
-    const noise = (Math.random() - 0.5) * 0.06;
+    const noise = (Math.random() * 2 - 1) * AI_ERROR[1].aim;
     const noisy = best.dir.clone();
     const perp = new THREE.Vector3(-noisy.z, 0, noisy.x);
     noisy.addScaledVector(perp, noise).normalize();
-    return { direction: noisy, power: best.power * (0.92 + Math.random() * 0.12) };
+    return { direction: noisy, power: best.power * (0.98 + (Math.random() * 2 - 1) * AI_ERROR[1].power) };
   }
 
   return amateurFallback(targets, cue);
