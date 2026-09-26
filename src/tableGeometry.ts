@@ -6,7 +6,9 @@
  *
  * Plan view (x across, z along the table), metres:
  * - Cushion noses sit on the WPBSA playing area (±0.889, ±1.7845).
- * - Each cushion ends in an angled jaw running back 50 mm into the rail.
+ * - Each cushion ends in an angled jaw running back 50 mm into the rail:
+ *   45° off the cushion line at the corners (open, blunt jaws), 60° at the
+ *   middle pockets.
  * - Pocket wells are the round holes in the bed: a ball drops once its
  *   centre is over the hole.
  */
@@ -34,10 +36,10 @@ const BACK_Z = 1.8345;
 /** Long cushion: nose runs z ∈ [MID_NOSE_END, CORNER_NOSE_END_Z]. */
 const MID_NOSE_END = 0.07604;
 const MID_BACK_END = 0.04717;
-const CORNER_NOSE_END_Z = 1.7143;
+const CORNER_NOSE_END_Z = 1.693165;
 const CORNER_BACK_END_Z = 1.74317;
 /** Short cushion: nose runs x ∈ ±CORNER_NOSE_END_X. */
-const CORNER_NOSE_END_X = 0.8188;
+const CORNER_NOSE_END_X = 0.797665;
 const CORNER_BACK_END_X = 0.84767;
 
 export const POCKET_HOLES: PocketHole[] = [
