@@ -1,8 +1,11 @@
+import type * as THREE from "three";
 import type { BallState } from "./balls";
 import { BALL_VALUES, COLOR_ORDER, type BallColor } from "./constants";
 import type { PhysicsWorld } from "./physics";
 
 export type PlayerId = "player" | "ai";
+
+type ColourName = Exclude<BallColor, "cue" | "red">;
 
 export type GamePhase =
   | "reds"
@@ -136,18 +139,16 @@ export class SnookerRules {
     // gone, so every correct pot in the colours phase was called a foul
     // ("Hit yellow first") and handed the turn to the opponent.
     const legal = this.legalFirstBallsForShot(balls, pocketedThisShot);
+    // Points are filled in once below (penalty()), whatever the foul was.
+    const foulFor = (reason: string): FoulInfo => ({ points: 0, reason });
 
     if (cuePocketed) {
-      foul = { points: Math.max(4, this.minFoulValue(legal)), reason: "Cue ball potted" };
+      foul = foulFor("Cue ball potted");
       cueInHand = true;
     } else if (!firstContact) {
-      foul = { points: Math.max(4, this.minFoulValue(legal)), reason: "Missed all balls" };
+      foul = foulFor("Missed all balls");
     } else if (!legal.includes(firstContact.color as BallColor) && firstContact.color !== "cue") {
-      const hitVal = firstContact.color === "red" ? 4 : BALL_VALUES[firstContact.color as Exclude<BallColor, "cue">];
-      foul = {
-        points: Math.max(4, hitVal, this.minFoulValue(legal)),
-        reason: `Hit ${firstContact.color} first`,
-      };
+      foul = foulFor(`Hit ${firstContact.color} first`);
     }
 
     // Wrong balls potted
@@ -160,10 +161,7 @@ export class SnookerRules {
       if (this.phase === "reds") {
         if (!this.onColour) {
           if (coloursPotted.length > 0) {
-            foul = {
-              points: Math.max(4, ...coloursPotted.map((b) => BALL_VALUES[b.color as Exclude<BallColor, "cue">])),
-              reason: "Potted colour on red",
-            };
+            foul = foulFor("Potted colour on red");
           } else if (redsPotted.length > 0) {
             scored = redsPotted.length;
             this.onColour = true;
@@ -174,16 +172,13 @@ export class SnookerRules {
         } else {
           // Must pot exactly one colour (or none)
           if (redsPotted.length > 0) {
-            const vals = coloursPotted.map((b) => BALL_VALUES[b.color as Exclude<BallColor, "cue">]);
-            if (firstContact && firstContact.color !== "red" && firstContact.color !== "cue") {
-              vals.push(BALL_VALUES[firstContact.color as Exclude<BallColor, "cue">]);
-            }
-            foul = { points: Math.max(4, ...vals), reason: "Potted red on colour" };
+            foul = foulFor("Potted red on colour");
           } else if (coloursPotted.length > 1) {
-            foul = {
-              points: Math.max(4, ...coloursPotted.map((b) => BALL_VALUES[b.color as Exclude<BallColor, "cue">])),
-              reason: "Potted multiple colours",
-            };
+            foul = foulFor("Potted multiple colours");
+          } else if (coloursPotted.length === 1 && coloursPotted[0].color !== firstContact!.color) {
+            // No nomination: the colour hit first is the ball on, so potting a
+            // different one (e.g. blue knocks pink in) is a foul.
+            foul = foulFor(`Hit ${firstContact!.color}, potted ${coloursPotted[0].color}`);
           } else if (coloursPotted.length === 1) {
             const c = coloursPotted[0];
             scored = BALL_VALUES[c.color as Exclude<BallColor, "cue">];
@@ -211,23 +206,13 @@ export class SnookerRules {
         if (idx >= COLOR_ORDER.length) {
           this.phase = "frame_over";
         } else if (redsPotted.length > 0) {
-          foul = { points: 4, reason: "Potted red in colours phase" };
+          foul = foulFor("Potted red in colours phase");
         } else if (coloursPotted.length > 1) {
-          foul = {
-            points: Math.max(
-              4,
-              BALL_VALUES[required],
-              ...coloursPotted.map((b) => BALL_VALUES[b.color as Exclude<BallColor, "cue">]),
-            ),
-            reason: "Potted multiple colours",
-          };
+          foul = foulFor("Potted multiple colours");
         } else if (coloursPotted.length === 1) {
           const c = coloursPotted[0];
           if (c.color !== required) {
-            foul = {
-              points: Math.max(4, BALL_VALUES[c.color as Exclude<BallColor, "cue">], BALL_VALUES[required]),
-              reason: `Needed ${required}, potted ${c.color}`,
-            };
+            foul = foulFor(`Needed ${required}, potted ${c.color}`);
             c.needsRespot = true;
           } else {
             scored = BALL_VALUES[required];
@@ -243,12 +228,15 @@ export class SnookerRules {
       }
     }
 
-    // Respot colours incorrectly left down on foul during reds/colours
+    // Penalty (WPBSA): the value of the ball on, the ball hit first or any ball
+    // potted — whichever is highest, minimum 4. Worked out here once, so a
+    // cue-ball or first-contact foul still counts, say, a black knocked in.
+    // Colours potted on a foul are respotted; reds stay down.
     if (foul) {
+      foul.points = this.penalty(legal, firstContact, pocketedThisShot);
       for (const b of coloursPotted) {
         b.needsRespot = true;
       }
-      // Reds stay down
       this.onColour = false;
     }
 
@@ -269,24 +257,34 @@ export class SnookerRules {
     }
 
     // Apply respots
+    const toRespot: BallState[] = [];
     for (const b of balls) {
-      if (b.needsRespot && b.color !== "red" && b.color !== "cue") {
-        // A colour correctly potted during the colours-clearing phase stays
-        // down. A colour potted together with the last red (shot started in the
-        // reds phase) must still be respotted before the clearance begins.
-        if (startedInColours && !foul && scored > 0 && pocketedThisShot.includes(b)) {
-          b.needsRespot = false;
-          continue;
-        }
-        const spot = world.findRespot(b.color);
-        if (spot) {
-          b.pocketed = false;
-          b.position.copy(spot);
-          b.velocity.set(0, 0, 0);
-          b.mesh.visible = true;
-        }
-        b.needsRespot = false;
-      }
+      if (!b.needsRespot || b.color === "red" || b.color === "cue") continue;
+      b.needsRespot = false;
+      // A colour correctly potted during the colours-clearing phase stays
+      // down. A colour potted together with the last red (shot started in the
+      // reds phase) must still be respotted before the clearance begins.
+      if (startedInColours && !foul && scored > 0 && pocketedThisShot.includes(b)) continue;
+      toRespot.push(b);
+    }
+    const place = (b: BallState, spot: THREE.Vector3) => {
+      b.pocketed = false;
+      b.position.copy(spot);
+      b.velocity.set(0, 0, 0);
+      b.mesh.visible = true;
+    };
+    // WPBSA: every colour whose own spot is free goes there; the rest take the
+    // highest available spot, highest-value colour first.
+    const displaced: BallState[] = [];
+    for (const b of toRespot) {
+      const own = world.ownSpotIfFree(b.color);
+      if (own) place(b, own);
+      else displaced.push(b);
+    }
+    displaced.sort((a, b) => BALL_VALUES[b.color as ColourName] - BALL_VALUES[a.color as ColourName]);
+    for (const b of displaced) {
+      const spot = world.findRespot(b.color);
+      if (spot) place(b, spot);
     }
 
     // Cue ball return
@@ -326,6 +324,17 @@ export class SnookerRules {
       frameOver,
       winner,
     };
+  }
+
+  private penalty(legal: BallColor[], firstContact: BallState | null, potted: BallState[]): number {
+    const value = (b: BallState) =>
+      b.color === "cue" ? 0 : BALL_VALUES[b.color as Exclude<BallColor, "cue">];
+    return Math.max(
+      4,
+      this.minFoulValue(legal),
+      firstContact ? value(firstContact) : 0,
+      ...potted.map(value),
+    );
   }
 
   private minFoulValue(legal: BallColor[]): number {

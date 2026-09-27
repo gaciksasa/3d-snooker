@@ -323,6 +323,13 @@ export class PhysicsWorld {
     b.position.z += b.velocity.z * time;
   }
 
+  /** The colour's own spot, if nothing is on it. */
+  ownSpotIfFree(color: BallState["color"]): THREE.Vector3 | null {
+    if (color === "cue" || color === "red") return null;
+    const spot = getSpotPositions()[color as keyof ReturnType<typeof getSpotPositions>].clone();
+    return this.isPositionFree(spot) ? spot : null;
+  }
+
   findRespot(color: BallState["color"]): THREE.Vector3 | null {
     if (color === "cue" || color === "red") return null;
     const spots = getSpotPositions();

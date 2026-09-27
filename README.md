@@ -92,7 +92,11 @@ Twitter tags pointing at `og-image.jpg` for link previews.
 - Then pot colours in order: yellow (2) → green (3) → brown (4) → blue (5) → pink (6) → black (7)
 - Fouls award points to the opponent (cue ball pot, wrong first contact, wrong pot, miss)
 - Foul value is the highest value of the balls involved (ball on, ball hit first,
-  balls wrongly potted), with a minimum of **4**
+  any ball potted), with a minimum of **4** — also on in-offs and wrong first contacts
+- On a colour there is no nomination: the colour hit first is the ball on, so
+  potting a different colour is a foul
+- Respotting: a colour goes on its own spot if free; otherwise on the highest
+  available spot, highest-value colour first
 - Cue ball fouls return the cue ball in the **D**
 
 ### Simplifications
